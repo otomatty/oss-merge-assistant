@@ -1,0 +1,110 @@
+{
+  "name": "oss-merge-assitant",
+  "displayName": "OSS Merge Assistant",
+  "description": "Assists with tracking and merging changes from upstream OSS repositories",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "oss-merge-assitant.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "oss-merge-assistant.openSettings",
+        "title": "Open Settings",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "oss-merge-assistant.checkUpdates",
+        "title": "Check Updates",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "oss-merge-assistant.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "oss-merge-assistant.reload",
+        "title": "Reload OSS Assistant"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "ossAssistantView",
+          "name": "OSS Merge Assistant",
+          "when": "workspaceFolderCount > 0",
+          "icon": "$(git-merge)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "oss-merge-assistant.refresh",
+          "when": "view == ossAssistantView",
+          "group": "navigation@1",
+          "icon": "$(refresh)"
+        },
+        {
+          "command": "oss-merge-assistant.openSettings",
+          "when": "view == ossAssistantView",
+          "group": "navigation@2",
+          "icon": "$(gear)"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "oss-merge-assistant.openSettings",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "oss-merge-assistant.checkUpdates",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "oss-merge-assistant.reload",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.105.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.36.0",
+    "esbuild": "^0.25.10",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
