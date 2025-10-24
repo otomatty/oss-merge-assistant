@@ -10,6 +10,7 @@
  *   ├─ vscode
  *   ├─ src/services/configService.ts
  *   ├─ src/services/gitService.ts
+ *   ├─ src/providers/ossTreeProvider.ts
  *   └─ src/types/index.ts
  *
  * Related Documentation:
@@ -21,6 +22,7 @@ import * as vscode from "vscode";
 import { ConfigService } from "../services/configService";
 import { GitService } from "../services/gitService";
 import { OSSConfig } from "../types";
+import { OSSTreeProvider } from "../providers/ossTreeProvider";
 
 export class SettingsWebview {
   private panel: vscode.WebviewPanel | undefined;
@@ -29,7 +31,8 @@ export class SettingsWebview {
 
   constructor(
     private context: vscode.ExtensionContext,
-    private workspaceRoot: string
+    private workspaceRoot: string,
+    private treeProvider: OSSTreeProvider
   ) {
     this.configService = ConfigService.getInstance(workspaceRoot);
     this.gitService = GitService.getInstance(workspaceRoot);
@@ -478,12 +481,15 @@ export class SettingsWebview {
 
       await this.configService.saveConfig(config);
 
+      // Reload TreeProvider to update the view with new configuration
+      await this.treeProvider.reload();
+
       this.panel?.webview.postMessage({
         command: "saveResult",
         success: true,
       });
 
-      // Notify extension to refresh tree view
+      // Notify extension to refresh tree view (legacy command)
       vscode.commands.executeCommand("oss-merge-assistant.refresh");
     } catch (error) {
       this.panel?.webview.postMessage({

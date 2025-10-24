@@ -41,12 +41,12 @@ export function activate(context: vscode.ExtensionContext) {
   const configService = ConfigService.getInstance(workspaceRoot);
   const gitService = GitService.getInstance(workspaceRoot);
 
-  // Initialize tree provider
+  // Initialize tree provider (must be initialized before settingsWebview)
   treeProvider = new OSSTreeProvider(workspaceRoot);
   vscode.window.registerTreeDataProvider("ossAssistantView", treeProvider);
 
-  // Initialize settings webview
-  settingsWebview = new SettingsWebview(context, workspaceRoot);
+  // Initialize settings webview (pass treeProvider reference)
+  settingsWebview = new SettingsWebview(context, workspaceRoot, treeProvider);
 
   // Register commands
   registerCommands(context, treeProvider, settingsWebview, gitService);
