@@ -53,15 +53,17 @@ export class OSSTreeProvider implements vscode.TreeDataProvider<TreeItemData> {
         // Ensure upstream remote is configured
         await this.gitService.addUpstreamRemote(this.config.upstreamUrl);
 
-        // Get git status
+        // Get git status (consider version range if configured)
         this.gitStatus = await this.gitService.getGitStatus(
           this.config.targetBranch
         );
 
-        // Get modified files
-        this.modifiedFiles = await this.gitService.getModifiedFiles(
-          this.config.targetBranch
-        );
+        // Get modified files with exclusions applied
+        this.modifiedFiles =
+          await this.gitService.getModifiedFilesWithExclusions(
+            this.config.targetBranch,
+            this.config.exclusions
+          );
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -167,6 +169,30 @@ export class OSSTreeProvider implements vscode.TreeDataProvider<TreeItemData> {
 
     // Status section
     items.push(this.getStatusItem());
+
+    // Version Range info (if enabled)
+    if (this.config?.versionRange?.enabled) {
+      items.push({
+        type: "status",
+        label: "📌 Version Range",
+        description: `${this.config.versionRange.from || ""}..${
+          this.config.versionRange.to || ""
+        }`,
+      });
+    }
+
+    // Exclusions info (if enabled)
+    if (this.config?.exclusions?.enabled) {
+      const totalPatterns =
+        (this.config.exclusions.usePresets
+          ? this.config.exclusions.patterns.length
+          : 0) + this.config.exclusions.customPatterns.length;
+      items.push({
+        type: "status",
+        label: "🚫 Exclusions",
+        description: `${totalPatterns} patterns active`,
+      });
+    }
 
     // Actions section
     items.push({

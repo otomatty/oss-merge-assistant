@@ -247,6 +247,102 @@ export class SettingsWebview {
             margin-top: 5px;
             padding-left: 10px;
         }
+        
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--vscode-input-border);
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: var(--vscode-font-size);
+        }
+        .tab:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+        .tab.active {
+            border-bottom-color: var(--vscode-focusBorder);
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Version Range specific styles */
+        .range-option {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+        }
+        .range-option input[type="radio"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        .range-inputs {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            margin-left: 25px;
+        }
+        .range-inputs > div {
+            flex: 1;
+        }
+        .preview-box {
+            background-color: var(--vscode-textBlockQuote-background);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        /* Exclusion specific styles */
+        .pattern-list {
+            margin-top: 10px;
+        }
+        .pattern-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: var(--vscode-list-inactiveSelectionBackground);
+            border-radius: 4px;
+        }
+        .pattern-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        .pattern-item label {
+            flex: 1;
+            margin: 0;
+            font-weight: normal;
+        }
+        .pattern-item button {
+            width: auto;
+            padding: 4px 8px;
+            margin-left: 5px;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: var(--vscode-textBlockQuote-background);
+        }
+        .add-pattern-section {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -254,6 +350,16 @@ export class SettingsWebview {
         <h1>OSS Merge Assistant Settings</h1>
         
         <div id="status" class="status"></div>
+        
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" data-tab="basic">Basic Settings</button>
+            <button class="tab" data-tab="version">Version Range</button>
+            <button class="tab" data-tab="exclusions">Exclusions</button>
+        </div>
+        
+        <!-- Basic Settings Tab -->
+        <div class="tab-content active" id="basic-tab">
         
         ${
           hasAutoDetected
@@ -336,10 +442,142 @@ export class SettingsWebview {
             </button>
             <button class="button secondary" onclick="resetToDefault()">Reset to Default</button>
         </div>
+        
+        </div> <!-- End Basic Settings Tab -->
+        
+        <!-- Version Range Tab -->
+        <div class="tab-content" id="version-tab">
+            <div class="section">
+                <h2>Version Range Configuration</h2>
+                <div class="help-text" style="margin-bottom: 15px;">
+                    Specify a version range to compare specific releases or commits instead of the entire branch.
+                </div>
+                
+                <div class="range-option">
+                    <label>
+                        <input type="radio" name="rangeMode" value="branch" checked onchange="updateRangeMode('branch')">
+                        Compare with branch (default)
+                    </label>
+                    <div class="help-text">Compare your local branch with the latest upstream branch.</div>
+                </div>
+                
+                <div class="range-option">
+                    <label>
+                        <input type="radio" name="rangeMode" value="range" onchange="updateRangeMode('range')">
+                        Compare specific version range
+                    </label>
+                    <div class="range-inputs" id="range-inputs" style="display: none;">
+                        <div class="form-group">
+                            <label for="rangeFrom">From:</label>
+                            <input type="text" id="rangeFrom" placeholder="v1.0.0 or commit hash">
+                            <button class="button secondary" onclick="loadTags('from')" style="margin-top: 5px; width: auto;">
+                                Browse Tags
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <label for="rangeTo">To:</label>
+                            <input type="text" id="rangeTo" placeholder="v2.0.0 or commit hash">
+                            <button class="button secondary" onclick="loadTags('to')" style="margin-top: 5px; width: auto;">
+                                Browse Tags
+                            </button>
+                        </div>
+                    </div>
+                    <div class="preview-box" id="range-preview" style="display: none;">
+                        📊 <span id="preview-text">Preview: Comparing X commits</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <button class="button" onclick="applyVersionRange()">Apply Range</button>
+                    <button class="button secondary" onclick="resetVersionRange()">Reset to Default</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exclusions Tab -->
+        <div class="tab-content" id="exclusions-tab">
+            <div class="section">
+                <h2>File Exclusion Settings</h2>
+                <div class="help-text" style="margin-bottom: 15px;">
+                    Exclude specific files or directories from difference checking using glob patterns.
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="exclusionsEnabled" checked onchange="toggleExclusions()">
+                        Enable file exclusions
+                    </label>
+                </div>
+                
+                <div id="exclusions-config">
+                    <h3>Preset Patterns</h3>
+                    <div class="pattern-list" id="preset-patterns">
+                        ${this.configService
+                          .getDefaultExclusions()
+                          .patterns.map(
+                            (pattern) => `
+                        <div class="pattern-item">
+                            <input type="checkbox" id="preset-${pattern.replace(
+                              /[^a-zA-Z0-9]/g,
+                              "_"
+                            )}" checked>
+                            <label for="preset-${pattern.replace(
+                              /[^a-zA-Z0-9]/g,
+                              "_"
+                            )}">${pattern}</label>
+                        </div>
+                        `
+                          )
+                          .join("")}
+                    </div>
+                    
+                    <h3 style="margin-top: 20px;">Custom Patterns</h3>
+                    <div class="add-pattern-section">
+                        <div class="form-group">
+                            <label for="newPattern">Pattern (glob format):</label>
+                            <input type="text" id="newPattern" placeholder="e.g., test/**/*.test.ts">
+                            <div class="help-text">
+                                Examples: <code>*.log</code>, <code>dist/**</code>, <code>src/**/test/*</code>
+                            </div>
+                        </div>
+                        <button class="button" onclick="testPattern()">Test Pattern</button>
+                        <button class="button secondary" onclick="addCustomPattern()">Add Pattern</button>
+                    </div>
+                    
+                    <div id="test-result" class="test-result" style="display: none;">
+                        <div id="test-result-text"></div>
+                    </div>
+                    
+                    <div class="pattern-list" id="custom-patterns">
+                        <!-- Custom patterns will be added here dynamically -->
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <button class="button" onclick="saveExclusions()">Save Exclusions</button>
+                    <button class="button secondary" onclick="resetExclusions()">Reset to Defaults</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                document.getElementById(tabName + '-tab').classList.add('active');
+            });
+        });
 
         function showStatus(message, type) {
             const status = document.getElementById('status');
@@ -353,11 +591,112 @@ export class SettingsWebview {
         }
 
         function getFormData() {
+            const versionRange = {
+                enabled: document.querySelector('input[name="rangeMode"]:checked').value === 'range',
+                from: document.getElementById('rangeFrom').value.trim(),
+                to: document.getElementById('rangeTo').value.trim(),
+                compareMode: document.querySelector('input[name="rangeMode"]:checked').value
+            };
+            
+            const presetPatterns = Array.from(document.querySelectorAll('[id^="preset-"]'))
+                .filter(cb => cb.checked)
+                .map(cb => cb.nextElementSibling.textContent);
+            
+            const customPatterns = Array.from(document.querySelectorAll('[id^="custom-"]'))
+                .map(cb => cb.nextElementSibling.textContent);
+            
+            const exclusions = {
+                enabled: document.getElementById('exclusionsEnabled').checked,
+                patterns: presetPatterns,
+                usePresets: true,
+                customPatterns: customPatterns
+            };
+            
             return {
                 upstreamUrl: document.getElementById('upstreamUrl').value.trim(),
                 targetBranch: document.getElementById('targetBranch').value,
-                localBaseBranch: document.getElementById('localBaseBranch').value
+                localBaseBranch: document.getElementById('localBaseBranch').value,
+                versionRange: versionRange,
+                exclusions: exclusions
             };
+        }
+        
+        // Version Range functions
+        function updateRangeMode(mode) {
+            const rangeInputs = document.getElementById('range-inputs');
+            if (mode === 'range') {
+                rangeInputs.style.display = 'flex';
+            } else {
+                rangeInputs.style.display = 'none';
+            }
+        }
+        
+        function loadTags(target) {
+            vscode.postMessage({ command: 'loadTags', target: target });
+        }
+        
+        function applyVersionRange() {
+            const range = {
+                from: document.getElementById('rangeFrom').value.trim(),
+                to: document.getElementById('rangeTo').value.trim(),
+                mode: document.querySelector('input[name="rangeMode"]:checked').value
+            };
+            vscode.postMessage({ command: 'previewVersionRange', range: range });
+        }
+        
+        function resetVersionRange() {
+            document.querySelector('input[value="branch"]').checked = true;
+            document.getElementById('rangeFrom').value = '';
+            document.getElementById('rangeTo').value = '';
+            updateRangeMode('branch');
+        }
+        
+        // Exclusions functions
+        function toggleExclusions() {
+            const enabled = document.getElementById('exclusionsEnabled').checked;
+            document.getElementById('exclusions-config').style.opacity = enabled ? '1' : '0.5';
+        }
+        
+        function testPattern() {
+            const pattern = document.getElementById('newPattern').value.trim();
+            if (!pattern) {
+                showStatus('Please enter a pattern', 'error');
+                return;
+            }
+            vscode.postMessage({ command: 'testExclusionPattern', pattern: pattern });
+        }
+        
+        function addCustomPattern() {
+            const pattern = document.getElementById('newPattern').value.trim();
+            if (!pattern) {
+                showStatus('Please enter a pattern', 'error');
+                return;
+            }
+            
+            const customPatterns = document.getElementById('custom-patterns');
+            const id = 'custom-' + Date.now();
+            const item = document.createElement('div');
+            item.className = 'pattern-item';
+            item.innerHTML = \`
+                <input type="checkbox" id="\${id}" checked>
+                <label for="\${id}">\${pattern}</label>
+                <button class="button secondary" onclick="this.parentElement.remove()">Remove</button>
+            \`;
+            customPatterns.appendChild(item);
+            
+            document.getElementById('newPattern').value = '';
+            showStatus('Pattern added', 'success');
+        }
+        
+        function saveExclusions() {
+            saveSettings();
+        }
+        
+        function resetExclusions() {
+            document.querySelectorAll('[id^="preset-"]').forEach(cb => cb.checked = true);
+            document.getElementById('custom-patterns').innerHTML = '';
+            document.getElementById('exclusionsEnabled').checked = true;
+            toggleExclusions();
         }
 
         function testConnection() {
@@ -428,6 +767,34 @@ export class SettingsWebview {
                         showStatus('❌ Failed to save settings: ' + message.error, 'error');
                     }
                     break;
+                case 'tagsLoaded':
+                    if (message.tags && message.tags.length > 0) {
+                        showStatus(\`📋 Found \${message.tags.length} tags\`, 'success');
+                        console.log('Available tags:', message.tags);
+                    } else {
+                        showStatus('No tags found or error loading tags', 'error');
+                    }
+                    break;
+                case 'patternTestResult':
+                    const resultDiv = document.getElementById('test-result');
+                    const resultText = document.getElementById('test-result-text');
+                    resultDiv.style.display = 'block';
+                    if (message.success) {
+                        resultText.innerHTML = \`✅ Pattern matches <strong>\${message.matchCount}</strong> files\${message.samples.length > 0 ? '<br>Examples: ' + message.samples.slice(0, 5).join(', ') : ''}\`;
+                    } else {
+                        resultText.innerHTML = '❌ Error testing pattern: ' + message.error;
+                    }
+                    break;
+                case 'rangePreviewResult':
+                    const previewBox = document.getElementById('range-preview');
+                    const previewText = document.getElementById('preview-text');
+                    previewBox.style.display = 'block';
+                    if (message.success) {
+                        previewText.textContent = \`Preview: Comparing \${message.commitCount} commits\`;
+                    } else {
+                        previewText.textContent = 'Error: ' + message.error;
+                    }
+                    break;
             }
         });
     </script>
@@ -442,6 +809,15 @@ export class SettingsWebview {
         break;
       case "saveConfig":
         await this.saveConfig(message.config);
+        break;
+      case "loadTags":
+        await this.loadUpstreamTags();
+        break;
+      case "testExclusionPattern":
+        await this.testExclusionPattern(message.pattern);
+        break;
+      case "previewVersionRange":
+        await this.previewVersionRange(message.range);
         break;
     }
   }
@@ -494,6 +870,82 @@ export class SettingsWebview {
     } catch (error) {
       this.panel?.webview.postMessage({
         command: "saveResult",
+        success: false,
+        error: String(error),
+      });
+    }
+  }
+
+  /**
+   * Load upstream tags and send to webview
+   */
+  private async loadUpstreamTags(): Promise<void> {
+    try {
+      const tags = await this.gitService.getUpstreamTags();
+
+      this.panel?.webview.postMessage({
+        command: "tagsLoaded",
+        tags,
+      });
+    } catch (error) {
+      this.panel?.webview.postMessage({
+        command: "tagsLoaded",
+        tags: [],
+        error: String(error),
+      });
+    }
+  }
+
+  /**
+   * Test exclusion pattern against repository files
+   */
+  private async testExclusionPattern(pattern: string): Promise<void> {
+    try {
+      const matchingFiles = await this.gitService.getMatchingFiles([pattern]);
+
+      this.panel?.webview.postMessage({
+        command: "patternTestResult",
+        success: true,
+        matchCount: matchingFiles.length,
+        samples: matchingFiles.slice(0, 10), // Show first 10 matches
+      });
+    } catch (error) {
+      this.panel?.webview.postMessage({
+        command: "patternTestResult",
+        success: false,
+        error: String(error),
+      });
+    }
+  }
+
+  /**
+   * Preview version range commit count
+   */
+  private async previewVersionRange(range: {
+    from: string;
+    to: string;
+    mode: "branch" | "tag" | "commit" | "range";
+  }): Promise<void> {
+    try {
+      const config = await this.configService.loadConfig();
+      const defaultConfig = this.configService.getDefaultConfig();
+
+      const commits = await this.gitService.getCommitsInRange(
+        range.from,
+        range.to,
+        range.mode,
+        config?.targetBranch || defaultConfig.targetBranch,
+        config?.localBaseBranch || defaultConfig.localBaseBranch || "main"
+      );
+
+      this.panel?.webview.postMessage({
+        command: "rangePreviewResult",
+        success: true,
+        commitCount: commits.length,
+      });
+    } catch (error) {
+      this.panel?.webview.postMessage({
+        command: "rangePreviewResult",
         success: false,
         error: String(error),
       });
