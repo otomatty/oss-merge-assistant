@@ -594,7 +594,7 @@ private async loadData(): Promise<void> {
 - [x] ConfigService 拡張完了
 - [x] GitService 拡張完了
 - [x] minimatch パッケージ追加
-- [x] SettingsWebview タブUI実装完了
+- [x] SettingsWebview タブ UI 実装完了
 - [x] Version Range タブ実装完了
 - [x] Exclusions タブ実装完了
 - [x] TreeProvider 表示更新完了

@@ -469,16 +469,25 @@ export class SettingsWebview {
                     <div class="range-inputs" id="range-inputs" style="display: none;">
                         <div class="form-group">
                             <label for="rangeFrom">From:</label>
-                            <input type="text" id="rangeFrom" placeholder="v1.0.0 or commit hash">
-                            <button class="button secondary" onclick="loadTags('from')" style="margin-top: 5px; width: auto;">
-                                Browse Tags
-                            </button>
+                            <select id="rangeFrom" onchange="onRangeChange()">
+                                <option value="">-- Select version or tag --</option>
+                            </select>
+                            <div class="help-text" id="from-loading" style="display: none;">
+                                🔄 Loading tags...
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="rangeTo">To:</label>
-                            <input type="text" id="rangeTo" placeholder="v2.0.0 or commit hash">
-                            <button class="button secondary" onclick="loadTags('to')" style="margin-top: 5px; width: auto;">
-                                Browse Tags
+                            <select id="rangeTo" onchange="onRangeChange()">
+                                <option value="">-- Select version or tag --</option>
+                            </select>
+                            <div class="help-text" id="to-loading" style="display: none;">
+                                🔄 Loading tags...
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button class="button secondary" onclick="refreshTags()" style="width: auto;">
+                                🔄 Refresh Tags
                             </button>
                         </div>
                     </div>
@@ -626,19 +635,86 @@ export class SettingsWebview {
             const rangeInputs = document.getElementById('range-inputs');
             if (mode === 'range') {
                 rangeInputs.style.display = 'flex';
+                // Auto-load tags when switching to range mode
+                if (!window.tagsLoaded) {
+                    loadTags();
+                }
             } else {
                 rangeInputs.style.display = 'none';
             }
         }
         
-        function loadTags(target) {
-            vscode.postMessage({ command: 'loadTags', target: target });
+        function loadTags() {
+            document.getElementById('from-loading').style.display = 'block';
+            document.getElementById('to-loading').style.display = 'block';
+            vscode.postMessage({ command: 'loadTags' });
+        }
+        
+        function refreshTags() {
+            // Clear existing options except the first one
+            const fromSelect = document.getElementById('rangeFrom');
+            const toSelect = document.getElementById('rangeTo');
+            fromSelect.innerHTML = '<option value="">-- Select version or tag --</option>';
+            toSelect.innerHTML = '<option value="">-- Select version or tag --</option>';
+            
+            // Reload tags
+            window.tagsLoaded = false;
+            loadTags();
+        }
+        
+        function populateTagSelects(tags) {
+            const fromSelect = document.getElementById('rangeFrom');
+            const toSelect = document.getElementById('rangeTo');
+            
+            // Save current selections
+            const currentFrom = fromSelect.value;
+            const currentTo = toSelect.value;
+            
+            // Clear existing options except the first one
+            fromSelect.innerHTML = '<option value="">-- Select version or tag --</option>';
+            toSelect.innerHTML = '<option value="">-- Select version or tag --</option>';
+            
+            // Add tags to both selects
+            tags.forEach(tag => {
+                const fromOption = document.createElement('option');
+                fromOption.value = tag;
+                fromOption.textContent = tag;
+                fromSelect.appendChild(fromOption);
+                
+                const toOption = document.createElement('option');
+                toOption.value = tag;
+                toOption.textContent = tag;
+                toSelect.appendChild(toOption);
+            });
+            
+            // Restore selections if they still exist
+            if (currentFrom && tags.includes(currentFrom)) {
+                fromSelect.value = currentFrom;
+            }
+            if (currentTo && tags.includes(currentTo)) {
+                toSelect.value = currentTo;
+            }
+            
+            // Hide loading indicators
+            document.getElementById('from-loading').style.display = 'none';
+            document.getElementById('to-loading').style.display = 'none';
+            
+            window.tagsLoaded = true;
+        }
+        
+        function onRangeChange() {
+            const from = document.getElementById('rangeFrom').value;
+            const to = document.getElementById('rangeTo').value;
+            
+            if (from || to) {
+                applyVersionRange();
+            }
         }
         
         function applyVersionRange() {
             const range = {
-                from: document.getElementById('rangeFrom').value.trim(),
-                to: document.getElementById('rangeTo').value.trim(),
+                from: document.getElementById('rangeFrom').value,
+                to: document.getElementById('rangeTo').value,
                 mode: document.querySelector('input[name="rangeMode"]:checked').value
             };
             vscode.postMessage({ command: 'previewVersionRange', range: range });
@@ -649,6 +725,7 @@ export class SettingsWebview {
             document.getElementById('rangeFrom').value = '';
             document.getElementById('rangeTo').value = '';
             updateRangeMode('branch');
+            document.getElementById('range-preview').style.display = 'none';
         }
         
         // Exclusions functions
@@ -769,10 +846,16 @@ export class SettingsWebview {
                     break;
                 case 'tagsLoaded':
                     if (message.tags && message.tags.length > 0) {
-                        showStatus(\`📋 Found \${message.tags.length} tags\`, 'success');
-                        console.log('Available tags:', message.tags);
+                        populateTagSelects(message.tags);
+                        showStatus(\`📋 Loaded \${message.tags.length} tags\`, 'success');
+                    } else if (message.error) {
+                        showStatus('❌ Failed to load tags: ' + message.error, 'error');
+                        document.getElementById('from-loading').style.display = 'none';
+                        document.getElementById('to-loading').style.display = 'none';
                     } else {
-                        showStatus('No tags found or error loading tags', 'error');
+                        showStatus('⚠️ No tags found in upstream repository', 'error');
+                        document.getElementById('from-loading').style.display = 'none';
+                        document.getElementById('to-loading').style.display = 'none';
                     }
                     break;
                 case 'patternTestResult':
@@ -797,6 +880,17 @@ export class SettingsWebview {
                     break;
             }
         });
+        
+        // Initialize version range from config
+        const initialConfig = ${JSON.stringify(currentConfig)};
+        if (initialConfig.versionRange && initialConfig.versionRange.enabled) {
+            // Set range mode
+            const rangeRadio = document.querySelector('input[value="range"]');
+            if (rangeRadio) {
+                rangeRadio.checked = true;
+                updateRangeMode('range');
+            }
+        }
     </script>
 </body>
 </html>`;
