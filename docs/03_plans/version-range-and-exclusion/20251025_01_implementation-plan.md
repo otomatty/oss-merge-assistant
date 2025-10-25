@@ -594,14 +594,14 @@ private async loadData(): Promise<void> {
 - [x] ConfigService 拡張完了
 - [x] GitService 拡張完了
 - [x] minimatch パッケージ追加
-- [x] SettingsWebview タブ UI 実装完了
+- [x] SettingsWebview タブUI実装完了
 - [x] Version Range タブ実装完了
 - [x] Exclusions タブ実装完了
 - [x] TreeProvider 表示更新完了
 - [x] コンパイルエラーなし
-- [ ] 全テストケースが成功
-- [ ] DEPENDENCY MAP 更新完了
-- [ ] 作業ログ作成完了
+- [ ] 全テストケースが成功（実機テスト待ち）
+- [x] DEPENDENCY MAP 更新完了
+- [x] 作業ログ作成完了
 
 ---
 
