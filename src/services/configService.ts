@@ -22,7 +22,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { promises as fs } from "fs";
-import { OSSConfig } from "../types";
+import { OSSConfig, VersionRange, ExclusionConfig } from "../types";
 
 export class ConfigService {
   private static instance: ConfigService;
@@ -92,6 +92,43 @@ export class ConfigService {
       upstreamUrl: "",
       targetBranch: "main",
       localBaseBranch: "main",
+      versionRange: this.getDefaultVersionRange(),
+      exclusions: this.getDefaultExclusions(),
+    };
+  }
+
+  /**
+   * Get default version range configuration
+   */
+  getDefaultVersionRange(): VersionRange {
+    return {
+      enabled: false,
+      from: "",
+      to: "",
+      compareMode: "branch",
+    };
+  }
+
+  /**
+   * Get default exclusion configuration
+   */
+  getDefaultExclusions(): ExclusionConfig {
+    return {
+      enabled: true,
+      patterns: [
+        "node_modules/**",
+        "dist/**",
+        "build/**",
+        ".next/**",
+        "out/**",
+        "coverage/**",
+        "*.log",
+        ".env*",
+        ".DS_Store",
+        "Thumbs.db",
+      ],
+      usePresets: true,
+      customPatterns: [],
     };
   }
 
@@ -122,6 +159,36 @@ export class ConfigService {
         if (!sshPattern.test(config.upstreamUrl)) {
           errors.push("Invalid repository URL format");
         }
+      }
+    }
+
+    // Validate version range if enabled
+    if (config.versionRange?.enabled) {
+      const rangeValidation = this.validateVersionRange(config.versionRange);
+      errors.push(...rangeValidation.errors);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Validate version range configuration
+   */
+  validateVersionRange(range: VersionRange): {
+    isValid: boolean;
+    errors: string[];
+  } {
+    const errors: string[] = [];
+
+    if (range.enabled) {
+      if (!range.from && !range.to) {
+        errors.push("Version range requires at least one endpoint");
+      }
+      if (range.compareMode === "range" && (!range.from || !range.to)) {
+        errors.push('Range mode requires both "from" and "to" values');
       }
     }
 

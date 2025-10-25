@@ -20,7 +20,14 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as vscode from "vscode";
-import { GitStatus, UpstreamCommit, ModifiedFile } from "../types";
+import { minimatch } from "minimatch";
+import {
+  GitStatus,
+  UpstreamCommit,
+  ModifiedFile,
+  ExclusionConfig,
+  VersionRange,
+} from "../types";
 
 const execAsync = promisify(exec);
 
@@ -500,5 +507,165 @@ export class GitService {
       require("path").join(this.workspaceRoot, filePath)
     );
     await vscode.window.showTextDocument(fullPath);
+  }
+
+  /**
+   * List all tags in upstream repository
+   */
+  async getUpstreamTags(): Promise<string[]> {
+    try {
+      await this.execGit("fetch upstream --tags");
+      const output = await this.execGit("tag --list --sort=-version:refname");
+
+      return output
+        .split("\n")
+        .filter((tag) => tag.trim())
+        .map((tag) => tag.trim());
+    } catch (error) {
+      console.error("Failed to get upstream tags:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get commits in version range
+   */
+  async getCommitsInRange(
+    from: string,
+    to: string,
+    mode: "branch" | "tag" | "commit" | "range",
+    targetBranch: string,
+    localBaseBranch: string
+  ): Promise<UpstreamCommit[]> {
+    try {
+      let range: string;
+
+      switch (mode) {
+        case "branch":
+          range = `${localBaseBranch}..upstream/${to || targetBranch}`;
+          break;
+        case "tag":
+        case "commit":
+        case "range":
+          if (from && to) {
+            range = `${from}..${to}`;
+          } else if (to) {
+            range = to;
+          } else if (from) {
+            range = `${from}..HEAD`;
+          } else {
+            range = `${localBaseBranch}..upstream/${targetBranch}`;
+          }
+          break;
+      }
+
+      const logFormat = "--pretty=format:%H|%s|%an|%ai";
+      const output = await this.execGit(
+        `log ${logFormat} ${range} --no-merges`
+      );
+
+      if (!output) {
+        return [];
+      }
+
+      const commitLines = output.split("\n");
+      const result: UpstreamCommit[] = [];
+
+      for (const line of commitLines) {
+        const [hash, message, author, date] = line.split("|");
+        if (hash && message) {
+          // Get files changed in this commit
+          const files = await this.getCommitFiles(hash);
+
+          result.push({
+            hash,
+            message,
+            author,
+            date,
+            files,
+          });
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Failed to get commits in range:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get modified files with exclusions applied
+   */
+  async getModifiedFilesWithExclusions(
+    targetBranch: string,
+    exclusions?: ExclusionConfig
+  ): Promise<ModifiedFile[]> {
+    const allFiles = await this.getModifiedFiles(targetBranch);
+
+    if (!exclusions || !exclusions.enabled) {
+      return allFiles;
+    }
+
+    const patterns = [
+      ...(exclusions.usePresets ? exclusions.patterns : []),
+      ...exclusions.customPatterns,
+    ];
+
+    return allFiles.filter((file) => {
+      return !patterns.some((pattern) => minimatch(file.path, pattern));
+    });
+  }
+
+  /**
+   * Get statistics about exclusions
+   */
+  async getExclusionStats(
+    targetBranch: string,
+    exclusions?: ExclusionConfig
+  ): Promise<{ total: number; excluded: number; included: number }> {
+    const allFiles = await this.getModifiedFiles(targetBranch);
+    const includedFiles = await this.getModifiedFilesWithExclusions(
+      targetBranch,
+      exclusions
+    );
+
+    return {
+      total: allFiles.length,
+      excluded: allFiles.length - includedFiles.length,
+      included: includedFiles.length,
+    };
+  }
+
+  /**
+   * Test if a file path matches an exclusion pattern
+   */
+  testExclusionPattern(pattern: string, filePath: string): boolean {
+    try {
+      return minimatch(filePath, pattern);
+    } catch (error) {
+      console.error("Invalid pattern:", pattern, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all file paths in the repository that match exclusion patterns
+   */
+  async getMatchingFiles(patterns: string[]): Promise<string[]> {
+    try {
+      const output = await this.execGit("ls-files");
+      const allFiles = output
+        .split("\n")
+        .filter((f) => f.trim())
+        .map((f) => f.trim());
+
+      return allFiles.filter((file) =>
+        patterns.some((pattern) => minimatch(file, pattern))
+      );
+    } catch (error) {
+      console.error("Failed to get matching files:", error);
+      return [];
+    }
   }
 }

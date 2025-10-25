@@ -7,6 +7,34 @@
  */
 
 /**
+ * Version range configuration for comparing specific versions
+ */
+export interface VersionRange {
+  /** Whether version range is enabled */
+  enabled: boolean;
+  /** Starting point (tag, commit, or branch) */
+  from: string;
+  /** Ending point (tag, commit, or branch) */
+  to: string;
+  /** Comparison mode */
+  compareMode: "branch" | "tag" | "commit" | "range";
+}
+
+/**
+ * File exclusion configuration
+ */
+export interface ExclusionConfig {
+  /** Whether exclusions are enabled */
+  enabled: boolean;
+  /** Preset exclusion patterns (node_modules, dist, etc.) */
+  patterns: string[];
+  /** Whether to use preset patterns */
+  usePresets: boolean;
+  /** User-defined custom patterns */
+  customPatterns: string[];
+}
+
+/**
  * Configuration interface for OSS tracking
  */
 export interface OSSConfig {
@@ -18,6 +46,10 @@ export interface OSSConfig {
   localBaseBranch?: string;
   /** Last sync timestamp */
   lastSync?: string;
+  /** Version range configuration for comparing specific versions */
+  versionRange?: VersionRange;
+  /** File exclusion configuration */
+  exclusions?: ExclusionConfig;
 }
 
 /**
